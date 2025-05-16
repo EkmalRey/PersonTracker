@@ -7,6 +7,9 @@ from collections import defaultdict
 from threading import Thread
 import time
 import os
+from fer import FER  # Import library FER untuk deteksi ekspresi wajah
+from collections import defaultdict
+import pandas as pd
 
 # Get the current directory of the script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -88,7 +91,10 @@ def main():
         model_path = os.path.join(current_dir, 'models', args.model)
         
     model = YOLO(model_path)
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    face_model = YOLO(os.path.join(current_dir, 'models', 'yolov8n-face-lindevs.pt'))
+
+    # Initialize FER for facial expression recognition
+    emotion_detector = FER()
 
     if args.source == 'youtube':
         stream_url = get_video_stream_url(args.youtube_url)
@@ -104,11 +110,24 @@ def main():
     frame_counter = 0
     running = True
 
+    # Menyimpan skor emosi untuk setiap ID
+    emotion_scores = defaultdict(lambda: defaultdict(list))
+
+    # Menyimpan ID yang sudah diproses
+    processed_ids = set()
+
+    # Siapkan CSV log untuk menulis secara bertahap
+    log_file = 'emotion_scores_log.csv'
+    if not os.path.exists(log_file):
+        pd.DataFrame(columns=['ID', 'Emotion', 'Score']).to_csv(log_file, index=False)
+
+
     while running:
         ret, frame = vs.read()
         if not ret or frame is None:
             print("\n⚠️ Stream ended or failed.")
             break
+        frame = cv2.resize(frame, (640, 360))
 
         result = model.track(
             source=frame,
@@ -158,17 +177,45 @@ def main():
                         person_roi = frame[y1_safe:y2_safe, x1_safe:x2_safe]
                         if person_roi.size > 0 and person_roi.shape[0] > 20 and person_roi.shape[1] > 20:
                             try:
-                                gray = cv2.cvtColor(person_roi, cv2.COLOR_BGR2GRAY)
-                                faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(20, 20), maxSize=(300, 300))
-                                for (fx, fy, fw, fh) in faces:
-                                    abs_x1 = fx + x1_safe
-                                    abs_y1 = fy + y1_safe
-                                    abs_x2 = fx + fw + x1_safe
-                                    abs_y2 = fy + fh + y1_safe
-                                    cv2.rectangle(draw_frame, (abs_x1, abs_y1), (abs_x2, abs_y2), (0, 255, 0), 2)
-                                    cv2.putText(draw_frame, "Face", (abs_x1, abs_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                                faces_result = face_model(person_roi, conf=0.5)[0]  # Deteksi wajah dengan YOLO
+
+                                if faces_result.boxes:
+                                    for box in faces_result.boxes.xyxy:
+                                        x1, y1, x2, y2 = map(int, box)
+                                        cv2.rectangle(draw_frame, (x1 + x1_safe, y1 + y1_safe), 
+                                                    (x2 + x1_safe, y2 + y1_safe), (0, 255, 0), 2)
+                                        cv2.putText(draw_frame, "Face", 
+                                                    (x1 + x1_safe, y1 + y1_safe - 10), 
+                                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                                                    
+                                        # Deteksi ekspresi wajah
+                                        # Deteksi semua emosi
+                                        emotions = emotion_detector.detect_emotions(person_roi)
+                                        if emotions:
+                                            top = emotions[0]["emotions"]
+                                            for emo_label, emo_score in top.items():
+                                                # Jika ID baru, tandai sebagai sudah diproses
+                                                if track_id not in processed_ids:
+                                                    processed_ids.add(track_id)
+                                                    print(f"[INFO] Detected new person with ID: {track_id}")
+
+                                                # Simpan skor emosi ke dalam struktur data dan langsung log ke CSV
+                                                for emo_label, emo_score in top.items():
+                                                    emotion_scores[track_id][emo_label].append(emo_score)
+                                                    
+                                                    # Tulis ke log file secara langsung
+                                                    with open(log_file, 'a') as f:
+                                                        f.write(f"{track_id},{emo_label},{emo_score:.4f}\n")
+
+
+                                            # Menampilkan emosi tertinggi
+                                            top_emotion = max(top.items(), key=lambda x: x[1])
+                                            cv2.putText(draw_frame, f"Emotion: {top_emotion[0]} ({top_emotion[1]*100:.2f}%)", 
+                                                        (x1 + x1_safe, y2 + y1_safe + 20), 
+                                                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
                             except Exception as e:
                                 print(f"Error processing face detection: {e}")
+
 
         current_fps = fps_counter.update()
         source_text = f"Source: {'YouTube' if args.source == 'youtube' else 'Webcam'}"
@@ -188,6 +235,20 @@ def main():
 
     vs.stop()
     cv2.destroyAllWindows()
+
+    # Buat DataFrame dari skor emosi
+    results = []
+    for track_id, emotions in emotion_scores.items():
+        avg_scores = {emo: sum(scores) / len(scores) if scores else 0 for emo, scores in emotions.items()}
+        avg_scores['ID'] = track_id
+        results.append(avg_scores)
+
+    df_results = pd.DataFrame(results)
+    df_results = df_results[['ID'] + [col for col in df_results.columns if col != 'ID']]  # Pastikan kolom ID di awal
+    df_results.to_csv('emotion_scores_summary.csv', index=False)
+    print("\n📁 Emotion summary saved to 'emotion_scores_summary.csv'")
+    print(df_results)
+
 
 if __name__ == "__main__":
     main()
