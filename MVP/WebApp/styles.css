@@ -451,6 +451,115 @@ body {
     margin: 0 auto;
 }
 
+/* Side Branding */
+.side-branding {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    pointer-events: none;
+}
+
+.side-branding.left-side {
+    left: 30px;
+}
+
+.side-branding.right-side {
+    right: 30px;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 36px;
+    color: rgba(0, 255, 255, 0.95);
+    pointer-events: auto;
+    font-weight: bold;
+    text-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
+    font-family: 'Courier New', monospace;
+}
+
+.heart-icon {
+    font-size: 48px;
+    animation: heartbeat 2s ease-in-out infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes heartbeat {
+    0%, 50%, 100% { transform: scale(1); }
+    25%, 75% { transform: scale(1.2); }
+}
+
+.brand-line {
+    font-weight: bold;
+    font-size: 32px;
+    margin: 5px 0;
+}
+
+.brand-name {
+    font-weight: bold;
+    font-size: 42px;
+    color: rgba(0, 255, 255, 1);
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+    margin-top: 15px;
+}
+
+.social-links {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    pointer-events: auto;
+}
+
+.social-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: rgba(0, 255, 255, 0.1);
+    border: 3px solid rgba(0, 255, 255, 0.5);
+    color: rgba(0, 255, 255, 0.8);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.social-link:hover {
+    background: rgba(0, 255, 255, 0.2);
+    border-color: rgba(0, 255, 255, 0.8);
+    color: rgba(0, 255, 255, 1);
+    transform: translateY(-5px) scale(1.1);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+}
+
+.social-link.linkedin:hover {
+    background: rgba(0, 119, 181, 0.2);
+    border-color: rgba(0, 119, 181, 0.8);
+    color: #0077b5;
+    box-shadow: 0 0 30px rgba(0, 119, 181, 0.6);
+}
+
+.social-link.github:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.8);
+    color: #fff;
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.4);
+}
+
+.social-link svg {
+    width: 40px;
+    height: 40px;
+    transition: transform 0.3s ease;
+}
+
+.social-link:hover svg {
+    transform: scale(1.2);
+}
+
 /* Responsive design */
 @media (max-width: 480px) {
     .container {
@@ -503,6 +612,11 @@ body {
         padding: 14px 18px;
         font-size: 15px;
     }
+    
+    /* Hide side branding on mobile */
+    .side-branding {
+        display: none;
+    }
 }
 
 @media (max-width: 360px) {
@@ -535,5 +649,10 @@ body {
     
     .stat-label {
         font-size: 11px;
+    }
+    
+    /* Hide side branding on very small screens */
+    .side-branding {
+        display: none;
     }
 }
