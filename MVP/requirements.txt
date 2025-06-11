@@ -1,5 +1,16 @@
-ultralytics
-opencv-python
-numpy
-yt-dlp
-moviepy==1.0.3
+# Core Computer Vision Dependencies
+ultralytics>=8.0.0         # YOLO models for object detection
+opencv-python>=4.5.0       # Computer vision operations
+numpy>=1.21.0              # Numerical operations
+
+# YouTube Stream Processing
+yt-dlp>=2023.1.0           # YouTube video stream extraction
+
+# Emotion Recognition
+fer>=22.4.0                # Facial emotion recognition
+
+# Web Framework (for WebApp)
+flask>=2.0.0               # Web server framework for mobile interface
+
+# Optional: Video processing (if needed)
+# moviepy>=1.0.3           # Video editing capabilities (currently unused)

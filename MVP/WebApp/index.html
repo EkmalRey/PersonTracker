@@ -3,316 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Person Tracker - Mobile</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            color: white;
-        }
-        
-        .header {
-            text-align: center;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
-        }
-        
-        .header h1 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .stats {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            font-size: 0.9rem;
-        }
-        
-        .stat-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 5px 10px;
-            border-radius: 15px;
-        }
-        
-        .camera-container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            position: relative;
-        }
-        
-        #canvas {
-            width: 100%;
-            max-width: 100vw;
-            height: auto;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            background: #000;
-        }
-        
-        #video {
-            display: none;
-        }
-        
-        .controls {
-            padding: 20px;
-            text-align: center;
-            background: rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
-        }
-        
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            color: white;
-            font-size: 1.1rem;
-            font-weight: 600;
-            padding: 15px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            min-width: 120px;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-        
-        .btn:active {
-            transform: translateY(0);
-        }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .btn-stop {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-        }
-        
-        .status {
-            margin-top: 10px;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-        
-        .loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 1.1rem;
-        }
-        
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.3rem;
-            }
-            
-            .stats {
-                flex-direction: column;
-                gap: 10px;
-                align-items: center;
-            }
-            
-            .btn {
-                font-size: 1rem;
-                padding: 12px 25px;
-            }
-        }
-    </style>
+    <title>AI Person Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="header">
-        <h1>🎯 Person Tracker</h1>
-        <div class="stats">
-            <div class="stat-item">
-                📊 FPS: <span id="fps">0</span>
-            </div>
-            <div class="stat-item">
-                👥 Persons: <span id="persons">0</span>
-            </div>
-            <div class="stat-item">
-                🎥 Status: <span id="status">Ready</span>
-            </div>
-        </div>
-    </div>
+    <!-- Background gradient -->
+    <div class="bg-gradient"></div>
     
-    <div class="camera-container">
-        <video id="video" autoplay muted playsinline></video>
-        <canvas id="canvas"></canvas>
-        <div id="loading" class="loading" style="display: none;">
-            📹 Initializing camera...
-        </div>
-    </div>
-    
-    <div class="controls">
-        <button id="startButton" class="btn">🚀 Start Tracking</button>
-        <button id="stopButton" class="btn btn-stop" disabled>🛑 Stop</button>
-        <div class="status" id="statusText">Tap Start to begin person tracking</div>
+    <!-- Floating particles -->
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
     </div>
 
-    <script>
-        let video = document.getElementById('video');
-        let canvas = document.getElementById('canvas');
-        let ctx = canvas.getContext('2d');
-        let stream = null;
-        let isProcessing = false;
-        let animationId = null;
-        
-        // UI elements
-        const startBtn = document.getElementById('startButton');
-        const stopBtn = document.getElementById('stopButton');
-        const statusText = document.getElementById('statusText');
-        const statusSpan = document.getElementById('status');
-        const fpsSpan = document.getElementById('fps');
-        const personsSpan = document.getElementById('persons');
-        const loading = document.getElementById('loading');
-
-        async function startCamera() {
-            try {
-                loading.style.display = 'block';
-                statusText.textContent = 'Requesting camera access...';
-                statusSpan.textContent = 'Starting';
-                
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'user',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    } 
-                });
-                
-                video.srcObject = stream;
-                
-                video.onloadedmetadata = () => {
-                    video.play();
-                    
-                    // Set canvas dimensions to match video
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    
-                    loading.style.display = 'none';
-                    isProcessing = true;
-                    statusText.textContent = 'Processing video frames...';
-                    statusSpan.textContent = 'Active';
-                    
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
-                    
-                    processFrames();
-                };
-                
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                loading.style.display = 'none';
-                statusText.textContent = 'Camera access denied or unavailable';
-                statusSpan.textContent = 'Error';
-                alert('Failed to access camera. Please allow camera permissions and try again.');
-            }
-        }
-
-        function stopCamera() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
+    <!-- Main container -->
+    <div class="container">
+        <!-- Header with glass effect -->
+        <header class="glass-card header-card">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">🤖</div>
+                    <h1>AI Person Tracker</h1>
+                </div>
+                <p class="subtitle">Real-time AI-powered person detection</p>
+            </div>
             
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-                animationId = null;
-            }
-            
-            isProcessing = false;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            statusText.textContent = 'Tracking stopped';
-            statusSpan.textContent = 'Stopped';
-            fpsSpan.textContent = '0';
-            personsSpan.textContent = '0';
-            
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-        }
+            <!-- Stats row -->
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="fps">0</div>
+                        <div class="stat-label">FPS</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="persons">0</div>
+                        <div class="stat-label">Detected</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📡</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="status">Ready</div>
+                        <div class="stat-label">Status</div>
+                    </div>
+                </div>
+            </div>
+        </header>
 
-        async function processFrames() {
-            if (!isProcessing) return;
-
-            try {
-                // Draw current video frame to canvas
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = canvas.toDataURL('image/jpeg', 0.8);
-
-                // Send frame to server for processing
-                const response = await fetch('/process_frame', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: imageData })
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    // Display processed image
-                    const processedImage = new Image();
-                    processedImage.src = result.processed_image;
-                    processedImage.onload = () => {
-                        ctx.drawImage(processedImage, 0, 0, canvas.width, canvas.height);
-                    };
+        <!-- Camera section -->
+        <main class="camera-section">
+            <div class="glass-card camera-card">
+                <div class="camera-container">
+                    <video id="video" autoplay muted playsinline></video>
+                    <canvas id="canvas"></canvas>
                     
-                    // Update stats
-                    if (result.fps !== undefined) {
-                        fpsSpan.textContent = result.fps.toFixed(1);
-                    }
-                    if (result.total_persons !== undefined) {
-                        personsSpan.textContent = result.total_persons;
-                    }
-                    
-                } else {
-                    console.error('Processing error:', result.error);
-                    statusText.textContent = 'Processing error occurred';
-                }
-                
-            } catch (error) {
-                console.error('Error sending frame to server:', error);
-                statusText.textContent = 'Connection error';
-            }
+                    <!-- Loading overlay -->
+                    <div id="loading" class="loading-overlay">
+                        <div class="loading-spinner"></div>
+                        <p>Initializing AI Camera...</p>
+                    </div>                    <!-- Camera overlay UI -->
+                    <div class="camera-overlay">
+                        <div class="scan-line"></div>
+                        <div class="corner-frame top-left"></div>
+                        <div class="corner-frame top-right"></div>
+                        <div class="corner-frame bottom-left"></div>
+                        <div class="corner-frame bottom-right"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
 
-            // Continue processing
-            if (isProcessing) {
-                animationId = requestAnimationFrame(processFrames);
-            }
-        }
+        <!-- Controls section -->
+        <footer class="controls-section">
+            <div class="glass-card controls-card">
+                <div class="button-row">
+                    <button id="startButton" class="btn btn-primary">
+                        <span class="btn-icon">🚀</span>
+                        <span>Start Detection</span>
+                    </button>
+                    <button id="stopButton" class="btn btn-secondary" disabled>
+                        <span class="btn-icon">⏹️</span>
+                        <span>Stop</span>
+                    </button>
+                </div>
+                <div class="status-text" id="statusText">
+                    Tap "Start Detection" to begin AI-powered person tracking
+                </div>
+            </div>
+        </footer>
+    </div>
 
-        // Event listeners
-        startBtn.addEventListener('click', startCamera);
-        stopBtn.addEventListener('click', stopCamera);
-        
-        // Handle page visibility change (pause when tab is hidden)
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden && isProcessing) {
-                // Optionally pause processing when tab is hidden
-                // stopCamera();
-            }
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
