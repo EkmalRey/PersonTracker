@@ -2,3 +2,4 @@ ultralytics
 opencv-python
 numpy
 yt-dlp
+moviepy==1.0.3

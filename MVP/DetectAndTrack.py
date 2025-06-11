@@ -8,8 +8,6 @@ from threading import Thread
 import time
 import os
 from fer import FER  # Import library FER untuk deteksi ekspresi wajah
-from collections import defaultdict
-import pandas as pd
 
 # Get the current directory of the script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -84,60 +82,90 @@ def main():
     parser.add_argument('--conf', type=float, default=0.4, help='Confidence threshold')
     args = parser.parse_args()
 
-    print(f"Loading YOLO model: {args.model}")
-    if os.path.exists(args.model):
-        model_path = args.model
+    detect_and_track(args.source, args.youtube_url, args.webcam_id, args.model, args.conf)
+
+def detect_and_track(source='webcam', youtube_url=None, webcam_id=0, model_path='yolov8n.pt', conf=0.4):
+    print(f"Loading YOLO models...")
+
+    # Try to use ONNX models first (faster inference)
+    person_onnx_path = os.path.join(current_dir, 'models', 'yolov8n.onnx')
+    face_onnx_path = os.path.join(current_dir, 'models', 'yolov8n-face-lindevs.onnx')
+
+    # Load person detection model (ONNX first, then fallback to PyTorch from archive)
+    if os.path.exists(person_onnx_path):
+        print("✅ Using ONNX person detection model for faster inference")
+        model = YOLO(person_onnx_path, task='detect')
     else:
-        model_path = os.path.join(current_dir, 'models', args.model)
-        
-    model = YOLO(model_path)
-    face_model = YOLO(os.path.join(current_dir, 'models', 'yolov8n-face-lindevs.pt'))
+        archive_model_path = os.path.join(current_dir, 'models', 'archive', model_path)
+        if os.path.exists(archive_model_path):
+            print(f"⚠️ ONNX not found, using PyTorch model from archive: {archive_model_path}")
+            model = YOLO(archive_model_path)
+        elif os.path.exists(model_path):
+            print("⚠️ ONNX not found, using PyTorch person detection model")
+            model = YOLO(model_path)
+        else:
+            print("❌ No model found! Please run ONNX conversion or check model paths")
+            print("   Run: python convert_to_onnx.py")
+            return
+
+    # Load face detection model (ONNX first, then fallback to PyTorch from archive)
+    if os.path.exists(face_onnx_path):
+        print("✅ Using ONNX face detection model for faster inference")
+        face_model = YOLO(face_onnx_path, task='detect')
+    else:
+        face_pt_path = os.path.join(current_dir, 'models', 'archive', 'yolov8n-face-lindevs.pt')
+        if os.path.exists(face_pt_path):
+            print("⚠️ Face ONNX not found, using PyTorch face detection model from archive")
+            face_model = YOLO(face_pt_path)
+        else:
+            print("❌ No face detection model found!")
+            print("   Please ensure yolov8n-face-lindevs model is in models/archive/")
+            return
 
     # Initialize FER for facial expression recognition
     emotion_detector = FER()
 
-    if args.source == 'youtube':
-        stream_url = get_video_stream_url(args.youtube_url)
+    if source == 'youtube':
+        stream_url = get_video_stream_url(youtube_url)
         if not stream_url:
             print("Failed to get YouTube video URL. Exiting.")
             return
         vs = VideoStream(stream_url)
     else:
-        vs = VideoStream(args.webcam_id)
+        vs = VideoStream(webcam_id)
 
     fps_counter = FPS()
     track_history = defaultdict(lambda: [])
     frame_counter = 0
     running = True
 
-    # Menyimpan skor emosi untuk setiap ID
-    emotion_scores = defaultdict(lambda: defaultdict(list))
+    # Emotion processing timing - process every 1 second
+    last_emotion_time = time.time()
+    emotion_interval = 1.0  # 1 second interval
 
-    # Menyimpan ID yang sudah diproses
+    # Menyimpan ID yang sudah diproses untuk info logging
     processed_ids = set()
 
-    # Siapkan CSV log untuk menulis secara bertahap
-    log_file = 'emotion_scores_log.csv'
-    if not os.path.exists(log_file):
-        pd.DataFrame(columns=['ID', 'Emotion', 'Score']).to_csv(log_file, index=False)
-
+    # Store last detected emotions for each person (persistent display)
+    person_emotions = defaultdict(lambda: {"emotion": "Unknown", "confidence": 0.0, "last_update": 0})
 
     while running:
         ret, frame = vs.read()
         if not ret or frame is None:
             print("\n⚠️ Stream ended or failed.")
             break
-        frame = cv2.resize(frame, (640, 360))
+        frame = cv2.resize(frame, (1280, 720))  # Larger frame for expo presentation
 
         result = model.track(
             source=frame,
             persist=True,
             tracker="bytetrack.yaml",
             classes=[0],
-            conf=args.conf,
+            conf=conf,
             iou=0.5,
-            imgsz=640,
-            stream=False
+            imgsz=416,          # Optimized size for ONNX model
+            stream=False,
+            verbose=False       # Reduce console output for better performance
         )[0]
 
         draw_frame = frame.copy()
@@ -167,58 +195,72 @@ def main():
                     points = np.array(track, dtype=np.int32).reshape((-1, 1, 2))
                     cv2.polylines(draw_frame, [points], isClosed=False, color=(230, 230, 230), thickness=2)
 
-                if frame_counter % 1 == 0:
-                    y1_safe = max(0, y1)
-                    y2_safe = min(frame.shape[0], y2)
-                    x1_safe = max(0, x1)
-                    x2_safe = min(frame.shape[1], x2)
+                # Process emotions for all detected persons
+                current_time = time.time()
+                should_update_emotion = current_time - last_emotion_time >= emotion_interval
 
-                    if y2_safe > y1_safe and x2_safe > x1_safe:
-                        person_roi = frame[y1_safe:y2_safe, x1_safe:x2_safe]
-                        if person_roi.size > 0 and person_roi.shape[0] > 20 and person_roi.shape[1] > 20:
-                            try:
-                                faces_result = face_model(person_roi, conf=0.5)[0]  # Deteksi wajah dengan YOLO
+                y1_safe = max(0, y1)
+                y2_safe = min(frame.shape[0], y2)
+                x1_safe = max(0, x1)
+                x2_safe = min(frame.shape[1], x2)
 
-                                if faces_result.boxes:
-                                    for box in faces_result.boxes.xyxy:
-                                        x1, y1, x2, y2 = map(int, box)
-                                        cv2.rectangle(draw_frame, (x1 + x1_safe, y1 + y1_safe), 
-                                                    (x2 + x1_safe, y2 + y1_safe), (0, 255, 0), 2)
-                                        cv2.putText(draw_frame, "Face", 
-                                                    (x1 + x1_safe, y1 + y1_safe - 10), 
-                                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                                                    
-                                        # Deteksi ekspresi wajah
-                                        # Deteksi semua emosi
+                if y2_safe > y1_safe and x2_safe > x1_safe:
+                    person_roi = frame[y1_safe:y2_safe, x1_safe:x2_safe]
+                    if person_roi.size > 0 and person_roi.shape[0] > 20 and person_roi.shape[1] > 20:
+                        try:
+                            faces_result = face_model(person_roi, conf=0.5, imgsz=320, verbose=False)[0]
+
+                            if faces_result.boxes:
+                                for box in faces_result.boxes.xyxy:
+                                    fx1, fy1, fx2, fy2 = map(int, box)
+
+                                    # Draw face rectangle
+                                    cv2.rectangle(draw_frame, (fx1 + x1_safe, fy1 + y1_safe), 
+                                                (fx2 + x1_safe, fy2 + y1_safe), (0, 255, 0), 2)
+                                    cv2.putText(draw_frame, "Face", 
+                                                (fx1 + x1_safe, fy1 + y1_safe - 10), 
+                                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                                    # Update emotions if interval has passed
+                                    if should_update_emotion:
                                         emotions = emotion_detector.detect_emotions(person_roi)
                                         if emotions:
                                             top = emotions[0]["emotions"]
-                                            for emo_label, emo_score in top.items():
-                                                # Jika ID baru, tandai sebagai sudah diproses
-                                                if track_id not in processed_ids:
-                                                    processed_ids.add(track_id)
-                                                    print(f"[INFO] Detected new person with ID: {track_id}")
-
-                                                # Simpan skor emosi ke dalam struktur data dan langsung log ke CSV
-                                                for emo_label, emo_score in top.items():
-                                                    emotion_scores[track_id][emo_label].append(emo_score)
-                                                    
-                                                    # Tulis ke log file secara langsung
-                                                    with open(log_file, 'a') as f:
-                                                        f.write(f"{track_id},{emo_label},{emo_score:.4f}\n")
-
-
-                                            # Menampilkan emosi tertinggi
                                             top_emotion = max(top.items(), key=lambda x: x[1])
-                                            cv2.putText(draw_frame, f"Emotion: {top_emotion[0]} ({top_emotion[1]*100:.2f}%)", 
-                                                        (x1 + x1_safe, y2 + y1_safe + 20), 
-                                                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                            except Exception as e:
-                                print(f"Error processing face detection: {e}")
+                                            person_emotions[track_id]["emotion"] = top_emotion[0]
+                                            person_emotions[track_id]["confidence"] = top_emotion[1]
+                                            person_emotions[track_id]["last_update"] = current_time
 
+                                    # Update last known face position
+                                    person_emotions[track_id]["last_face"] = (fx1 + x1_safe, fy1 + y1_safe, fx2 + x1_safe, fy2 + y1_safe)
+
+                        except Exception as e:
+                            print(f"Error processing face detection: {e}")
+
+                # Always display the last known emotion and face position for this person
+                if track_id in person_emotions:
+                    emotion_data = person_emotions[track_id]
+
+                    # Display persistent emotion
+                    emotion_x = x1
+                    emotion_y = y2 + 30
+
+                    if "last_face" in emotion_data:
+                        fx1, fy1, fx2, fy2 = emotion_data["last_face"]
+                        cv2.rectangle(draw_frame, (fx1, fy1), (fx2, fy2), (0, 255, 0), 2)
+                        cv2.putText(draw_frame, "Face", (fx1, fy1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                        emotion_x = fx1
+                        emotion_y = fy2 + 20
+
+                    cv2.putText(draw_frame, f"Emotion: {emotion_data['emotion']} ({emotion_data['confidence']*100:.0f}%)", 
+                                (emotion_x, emotion_y), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+                if should_update_emotion:
+                    last_emotion_time = current_time  # Update the last emotion processing time
 
         current_fps = fps_counter.update()
-        source_text = f"Source: {'YouTube' if args.source == 'youtube' else 'Webcam'}"
+        source_text = f"Source: {'YouTube' if source == 'youtube' else 'Webcam'}"
         fps_text = f"FPS: {current_fps:.1f}"
 
         cv2.putText(draw_frame, source_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
@@ -235,19 +277,126 @@ def main():
 
     vs.stop()
     cv2.destroyAllWindows()
+    print("\n✅ Detection and tracking completed.")
 
-    # Buat DataFrame dari skor emosi
-    results = []
-    for track_id, emotions in emotion_scores.items():
-        avg_scores = {emo: sum(scores) / len(scores) if scores else 0 for emo, scores in emotions.items()}
-        avg_scores['ID'] = track_id
-        results.append(avg_scores)
+def process_frame_for_web(frame, person_model, face_model, emotion_detector, fps_counter, track_history, processed_ids, person_emotions, last_emotion_time, emotion_interval, conf=0.4):
+    """
+    Process a single frame for web application use
+    Returns: (processed_frame, updated_person_emotions, updated_last_emotion_time, fps, total_persons)
+    """
+    current_time = time.time()
+    should_update_emotion = current_time - last_emotion_time >= emotion_interval
+    
+    # Update last emotion time if interval passed
+    if should_update_emotion:
+        last_emotion_time = current_time
+    
+    # Resize frame for consistent processing
+    frame = cv2.resize(frame, (1280, 720))
+    
+    result = person_model.track(
+        source=frame,
+        persist=True,
+        tracker="bytetrack.yaml",
+        classes=[0],
+        conf=conf,
+        iou=0.5,
+        imgsz=416,
+        stream=False,
+        verbose=False
+    )[0]
 
-    df_results = pd.DataFrame(results)
-    df_results = df_results[['ID'] + [col for col in df_results.columns if col != 'ID']]  # Pastikan kolom ID di awal
-    df_results.to_csv('emotion_scores_summary.csv', index=False)
-    print("\n📁 Emotion summary saved to 'emotion_scores_summary.csv'")
-    print(df_results)
+    draw_frame = frame.copy()
+    total_person_detected = 0
+
+    if result.boxes and hasattr(result.boxes, 'id') and result.boxes.id is not None:
+        boxes = result.boxes.xywh.cpu()
+        track_ids = result.boxes.id.int().cpu().tolist()
+        total_person_detected = len(track_ids)
+
+        for box, track_id in zip(boxes, track_ids):
+            x_center, y_center, w, h = box
+            x1 = int(x_center - w / 2)
+            y1 = int(y_center - h / 2)
+            x2 = int(x_center + w / 2)
+            y2 = int(y_center + h / 2)
+
+            cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+            cv2.putText(draw_frame, f"ID: {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+            track = track_history[track_id]
+            track.append((float(x_center), float(y_center)))
+            if len(track) > 30:
+                track.pop(0)
+
+            if len(track) > 1:
+                points = np.array(track, dtype=np.int32).reshape((-1, 1, 2))
+                cv2.polylines(draw_frame, [points], isClosed=False, color=(230, 230, 230), thickness=2)
+
+            y1_safe = max(0, y1)
+            y2_safe = min(frame.shape[0], y2)
+            x1_safe = max(0, x1)
+            x2_safe = min(frame.shape[1], x2)
+
+            if y2_safe > y1_safe and x2_safe > x1_safe:
+                person_roi = frame[y1_safe:y2_safe, x1_safe:x2_safe]
+                if person_roi.size > 0 and person_roi.shape[0] > 20 and person_roi.shape[1] > 20:
+                    try:
+                        faces_result = face_model(person_roi, conf=0.5, imgsz=320, verbose=False)[0]
+
+                        if faces_result.boxes:
+                            for box in faces_result.boxes.xyxy:
+                                fx1, fy1, fx2, fy2 = map(int, box)
+
+                                # Draw face rectangle
+                                cv2.rectangle(draw_frame, (fx1 + x1_safe, fy1 + y1_safe), 
+                                            (fx2 + x1_safe, fy2 + y1_safe), (0, 255, 0), 2)
+                                cv2.putText(draw_frame, "Face", 
+                                            (fx1 + x1_safe, fy1 + y1_safe - 10), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                                # Update emotions if interval has passed
+                                if should_update_emotion:
+                                    emotions = emotion_detector.detect_emotions(person_roi)
+                                    if emotions:
+                                        top = emotions[0]["emotions"]
+                                        top_emotion = max(top.items(), key=lambda x: x[1])
+                                        person_emotions[track_id]["emotion"] = top_emotion[0]
+                                        person_emotions[track_id]["confidence"] = top_emotion[1]
+                                        person_emotions[track_id]["last_update"] = current_time
+
+                                # Update last known face position
+                                person_emotions[track_id]["last_face"] = (fx1 + x1_safe, fy1 + y1_safe, fx2 + x1_safe, fy2 + y1_safe)
+
+                    except Exception as e:
+                        print(f"Error processing face detection: {e}")
+
+            # Always display the last known emotion and face position for this person
+            if track_id in person_emotions:
+                emotion_data = person_emotions[track_id]
+
+                # Display persistent emotion
+                emotion_x = x1
+                emotion_y = y2 + 30
+
+                if "last_face" in emotion_data:
+                    fx1, fy1, fx2, fy2 = emotion_data["last_face"]
+                    cv2.rectangle(draw_frame, (fx1, fy1), (fx2, fy2), (0, 255, 0), 2)
+                    cv2.putText(draw_frame, "Face", (fx1, fy1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    emotion_x = fx1
+                    emotion_y = fy2 + 20
+
+                cv2.putText(draw_frame, f"Emotion: {emotion_data['emotion']} ({emotion_data['confidence']*100:.0f}%)", 
+                            (emotion_x, emotion_y), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+    current_fps = fps_counter.update()
+    fps_text = f"FPS: {current_fps:.1f}"
+    
+    cv2.putText(draw_frame, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv2.putText(draw_frame, f"Total Persons: {total_person_detected}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+
+    return draw_frame, person_emotions, last_emotion_time, current_fps, total_person_detected
 
 
 if __name__ == "__main__":
