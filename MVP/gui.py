@@ -84,7 +84,7 @@ class ModernPersonTrackerViewer:
     def init_video_source(self):
         """Initialize video capture source"""
         if self.source == 'youtube':
-            from MVP.ARCHIVE.DetectAndTrack import get_video_stream_url
+            from ARCHIVE.DetectAndTrack import get_video_stream_url
             stream_url = get_video_stream_url(self.youtube_url)
             if not stream_url:
                 raise ValueError("Failed to get YouTube video URL")
