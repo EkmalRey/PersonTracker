@@ -84,8 +84,7 @@ class ModernPersonTrackerViewer:
     def init_video_source(self):
         """Initialize video capture source"""
         if self.source == 'youtube':
-            from ARCHIVE.DetectAndTrack import get_video_stream_url
-            stream_url = get_video_stream_url(self.youtube_url)
+            stream_url = self._get_video_stream_url(self.youtube_url)
             if not stream_url:
                 raise ValueError("Failed to get YouTube video URL")
             self.cap = cv2.VideoCapture(stream_url)
@@ -94,6 +93,39 @@ class ModernPersonTrackerViewer:
         
         if not self.cap.isOpened():
             raise ValueError(f"Failed to open video source: {self.source}")
+    
+    def _get_video_stream_url(self, youtube_url):
+        """Get video stream URL from YouTube using yt-dlp"""
+        import subprocess
+        
+        formats = {
+            "270": "1080p",
+            "311": "720p60", 
+            "232": "720p",
+            "136": "720p",
+            "135": "480p",
+            "134": "360p",
+            "133": "240p",
+            "160": "144p"
+        }
+        
+        for fmt in formats.keys():
+            cmd = ["yt-dlp", "-g", "-f", fmt, youtube_url]
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                video_url = result.stdout.strip()
+                if video_url:
+                    print(f"\r✅ Found video URL for {formats[fmt]}")
+                    return video_url
+                else:
+                    print(f"\r❌ Format {formats[fmt]} not available, trying lower quality...")
+            except subprocess.TimeoutExpired:
+                print(f"\r⏱️ Timeout for {formats[fmt]}, trying next format...")
+            except Exception as e:
+                print(f"\r❌ Error getting {formats[fmt]}: {e}")
+        
+        print("\r❌ No valid MP4 video format found.")
+        return None
 
     def draw_modern_overlay(self, frame, fps, total_persons, paused=False):
         """Draw modern UI overlay with glass morphism effect"""

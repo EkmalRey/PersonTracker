@@ -115,7 +115,7 @@ if __name__ == '__main__':
 
 #### 1. Start your application:
 ```bash
-cd MVP/WebApp
+cd WebApp
 python server.py
 ```
 
@@ -170,7 +170,7 @@ sudo systemctl start cloudflared
 # Visit https://ngrok.com/download for your platform
 
 # Start your app
-cd MVP/WebApp
+cd WebApp
 python server.py
 
 # In another terminal, expose port 8080
@@ -206,7 +206,7 @@ sudo apt install python3 python3-pip nginx -y
 
 # Clone your repository
 git clone https://github.com/yourusername/PersonTracker.git
-cd PersonTracker/MVP
+cd PersonTracker
 
 # Install dependencies
 pip3 install -r requirements.txt
@@ -252,7 +252,7 @@ sudo certbot --nginx -d your-domain.com
 npm install -g pm2
 
 # Start application
-cd PersonTracker/MVP/WebApp
+cd PersonTracker/WebApp
 pm2 start server.py --name person-tracker --interpreter python3
 
 # Save PM2 configuration
@@ -272,7 +272,7 @@ pm2 startup
 3. **Add environment variables:**
    ```
    PORT=8080
-   PYTHONPATH=/app/MVP
+   PYTHONPATH=/app
    ```
 4. **Deploy** - Railway automatically detects Python and deploys
 
