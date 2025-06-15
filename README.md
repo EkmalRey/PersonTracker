@@ -1,128 +1,162 @@
 # 🎯 AI Person Tracker with Emotion Detection
 
-A comprehensive computer vision project that combines **person detection**, **tracking**, and **emotion recognition** using state-of-the-art AI models. Available as both desktop application and modern web-based solution.
+A comprehensive computer vision project that combines **person detection**, **tracking**, and **emotion recognition** using state-of-the-art AI models. Features a modern desktop GUI application with OpenCV visualization and a mobile-first web interface.
 
 ## ✨ Key Features
 
-- **🤖 Person Detection & Tracking** - YOLO with ByteTrack for multi-person tracking with persistent IDs
-- **👤 Face Detection** - Specialized YOLO model for accurate face detection within person bounding boxes
+- **🤖 Person Detection & Tracking** - YOLOv8n with ByteTrack for multi-person tracking with persistent IDs
+- **👤 Face Detection** - Specialized YOLOv8n-face-lindevs model for accurate face detection within person bounding boxes
 - **😊 Emotion Recognition** - Real-time facial emotion analysis using FER (optimized 1-second intervals)
-- **📺 Multi-Source Input** - Supports webcam and YouTube livestreams
-- **🛤️ Track History** - Visual trails showing person movement paths with polylines
-- **📱 Web Interface** - Mobile-first web app perfect for demos and exhibitions
-- **⚡ ONNX Optimization** - Faster inference with optimized ONNX models
+- **📺 Multi-Source Input** - Supports webcam and YouTube livestreams (desktop app)
+- **🛤️ Track History** - Visual trails showing person movement paths with polylines (max 30 points)
+- **📱 Mobile Web Interface** - WebRTC-based web app with server-side AI processing
+- **⚡ ONNX Optimization** - Faster inference with optimized ONNX models (automatic fallback to PyTorch)
 - **📊 Live Statistics** - Real-time FPS counter and person count display
-- **🎮 Interactive Controls** - Keyboard shortcuts for control
+- **🎮 Modern GUI Controls** - OpenCV-based desktop interface with keyboard shortcuts
+- **🎨 Glass Morphism UI** - Modern overlay design with semi-transparent elements
 
 ## 🏗️ Project Architecture
 
 ```
 📂 PersonTracker/
 ├── 📄 README.md                     # Main project documentation
-├── ️ engine.py                    # Core tracking engine
-├── 🖥️ gui.py                       # Modern desktop GUI interface
+├── ⚙️ engine.py                    # Core tracking engine with PersonTrackerEngine class
+├── 🖥️ gui.py                       # Modern OpenCV-based desktop interface
 ├── 📊 ONNX_Conversion.ipynb         # Model optimization notebook
-├── 📋 requirements.txt              # Python dependencies
+├── 📋 requirements.txt              # Python dependencies (16 packages)
 ├── 📂 models/                       # AI Models storage
-│   ├── 🤖 yolov8n.onnx             # Optimized person detection
-│   ├── 👤 yolov8n-face-lindevs.onnx # Optimized face detection
-│   └── 📂 archive/                  # Original PyTorch models (.pt)
-│       ├── yolov8n.pt              # Person detection (original)
-│       ├── yolov8n-face-lindevs.pt # Face detection (original)
+│   ├── 🤖 yolov8n.onnx             # Optimized person detection (primary)
+│   ├── 👤 yolov8n-face-lindevs.onnx # Optimized face detection (primary)
+│   └── 📂 archive/                  # Original PyTorch models (.pt files)
+│       ├── yolov8n.pt              # Person detection (fallback)
+│       ├── yolov8n-face-lindevs.pt # Face detection (fallback)
 │       └── yolo11n.pt              # Alternative model
-└── 📂 WebApp/                       # Web-based interface
-    ├── 🌐 server.py                 # Flask backend with AI processing
-    ├── 📱 index.html                # Mobile-optimized frontend
-    ├── 🎨 styles.css                # Modern UI styling
-    ├── ⚡ script.js                 # Interactive JavaScript
-    ├── 📄 README.md                 # WebApp documentation
+└── 📂 WebApp/                       # Web-based mobile interface
+    ├── 🌐 server.py                 # Flask backend (76 lines) with AI processing
+    ├── 📱 index.html                # Mobile-optimized frontend with WebRTC
+    ├── 🎨 styles.css                # Modern gradient UI styling
+    ├── ⚡ script.js                 # Interactive JavaScript for camera
+    ├── 📄 README.md                 # WebApp documentation (411 lines)
     └── 🚀 DEPLOYMENT_GUIDE.md       # Production deployment guide
 ```
 
 ## 🚀 Quick Start Guide
 
-### 🖥️ Desktop Application
+### 🖥️ Desktop Application (Primary Interface)
 
 #### 1. Setup Environment
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd PersonTracker
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-#### 2. Basic Usage (Desktop GUI)
+#### 2. Run Desktop GUI Application (Recommended)
 ```bash
 python gui.py
 ```
 
-#### 3. Modern GUI Interface
+#### 3. Optional: Specify Source and Parameters
 ```bash
-python gui.py
+# Use webcam (default)
+python gui.py --source webcam --webcam_id 0 --conf 0.4
+
+# Use YouTube stream
+python gui.py --source youtube --youtube_url "https://youtu.be/su33E1lreMc" --conf 0.4
 ```
 
-#### 4. YouTube Stream (via GUI)
-Run the GUI application and use the interface to select YouTube as source
+### 📱 Mobile Web Application
 
-### 📱 Web Application
-
-#### 1. Start Server
+#### 1. Start the Flask Server
 ```bash
 cd WebApp
 python server.py
 ```
 
-#### 2. Access Interface
-- **Local:** http://localhost:8080
-- **Mobile:** http://YOUR_IP:8080 (replace with your computer's IP)
+#### 2. Access on Mobile Device
+- **Local Testing:** http://localhost:8080
+- **Mobile Access:** http://YOUR_IP:8080 (find IP using `ipconfig` on Windows)
 
-#### 3. Grant Permissions
-- Tap "🚀 Start Tracking"
-- Allow camera access when prompted
-- Point camera at people to see live AI detection
+#### 3. Use the Interface
+- Tap "🚀 Start Tracking" to begin camera capture
+- Allow camera permissions when prompted
+- View real-time AI detection with emotion analysis
 
-## ⚙️ Configuration
+## ⚙️ Configuration & Usage
 
-### Desktop GUI Application:
-- **Source Selection** - Choose between webcam and YouTube streams via interface
-- **Camera Selection** - Select different camera devices from dropdown
-- **Confidence Threshold** - Adjust detection sensitivity with slider
-- **Model Selection** - Choose between available YOLO models
-- **Real-time Controls** - Modify settings while application is running
+### Desktop Application Arguments:
+```bash
+python gui.py [options]
 
-### Configuration Guide:
-- **Confidence 0.3** - More detections, some false positives
-- **Confidence 0.4** - Balanced (recommended default)
-- **Confidence 0.5** - Higher precision, fewer detections
-- **Confidence 0.6+** - Very strict, minimal false positives
+Options:
+  --source {webcam,youtube}     Source type (default: webcam)
+  --youtube_url URL            YouTube URL (default: provided demo URL)
+  --webcam_id INT              Webcam device ID (default: 0)
+  --conf FLOAT                 Confidence threshold (default: 0.4)
+```
+
+### Model Selection & Performance:
+- **ONNX Models (Preferred)**: Automatically used if available in `models/` directory
+- **PyTorch Fallback**: Uses `.pt` files from `models/archive/` if ONNX not found
+- **Image Processing**: 1280x720 display resolution, 416x416 for ONNX inference
+
+### Confidence Threshold Guide:
+- **0.3** - More detections, some false positives
+- **0.4** - Balanced (recommended default)
+- **0.5** - Higher precision, fewer detections  
+- **0.6+** - Very strict, minimal false positives
 
 ## 🎮 Usage Examples
 
 ### Desktop Application Examples:
 
-#### Modern GUI (Recommended):
+#### Basic Webcam Usage:
 ```bash
+# Default settings (webcam, confidence 0.4)
 python gui.py
+
+# Specific webcam with custom confidence
+python gui.py --webcam_id 1 --conf 0.5
 ```
 
-#### Direct engine usage (advanced):
+#### YouTube Stream Processing:
 ```bash
-# Use the engine.py module in your own scripts
-# See gui.py for implementation examples
+# Use default demo YouTube URL
+python gui.py --source youtube
+
+# Use custom YouTube URL
+python gui.py --source youtube --youtube_url "https://youtu.be/YOUR_VIDEO_ID"
 ```
 
 ### Web Application Examples:
 
 #### Local Development:
 ```bash
-cd WebApp && python server.py
+cd WebApp
+python server.py
+# Access at http://localhost:8080
 ```
 
-#### Custom Host/Port:
+#### Network Access Setup:
 ```bash
-cd WebApp && python server.py --host 0.0.0.0 --port 5000
+# Find your IP address
+ipconfig  # Windows
+ifconfig  # Mac/Linux
+
+# Access from mobile: http://YOUR_IP:8080
+# Example: http://192.168.1.100:8080
 ```
 
-#### Development Mode:
-```bash
-cd WebApp && FLASK_ENV=development python server.py
+### Integration Examples:
+
+#### Using the Engine Directly:
+```python
+import cv2
+from engine import PersonTrackerEngine
+# ... (see Advanced Usage section for complete example)
 ```
 
 ## 🛠️ System Requirements
@@ -142,58 +176,67 @@ cd WebApp && FLASK_ENV=development python server.py
 
 ### Core Dependencies:
 ```
-ultralytics>=8.0.0    # YOLO models and tracking
-opencv-python>=4.5.0  # Computer vision operations
+ultralytics>=8.0.0    # YOLO models and ByteTrack tracking
+opencv-python>=4.5.0  # Computer vision operations and GUI
 numpy>=1.21.0         # Numerical computations
-yt-dlp>=2023.1.0      # YouTube stream extraction
+yt-dlp>=2023.1.0      # YouTube stream extraction (desktop only)
 fer>=22.4.0           # Facial emotion recognition
 flask>=2.0.0          # Web framework (WebApp only)
 ```
 
+**Total Package Count:** 16 dependencies (see `requirements.txt` for complete list)
+
 ## 🧠 How It Works
 
-### Processing Pipeline:
-1. **📹 Video Input** - Captures frames from webcam or YouTube stream
-2. **🔍 Person Detection** - YOLO detects and tracks persons with unique IDs
-3. **👤 Face Detection** - Secondary YOLO model finds faces within person bounding boxes
-4. **😊 Emotion Analysis** - FER analyzes facial expressions (every 1 second for performance)
-5. **🎨 Visualization** - Draws bounding boxes, track history, and emotion labels
-6. **📊 Statistics** - Displays real-time FPS and person count
+### Core Processing Pipeline:
+1. **📹 Video Input** - Captures frames from webcam (OpenCV) or YouTube stream (yt-dlp)
+2. **🔍 Person Detection** - YOLOv8n detects persons with ByteTrack for ID persistence
+3. **👤 Face Detection** - YOLOv8n-face-lindevs finds faces within person bounding boxes
+4. **😊 Emotion Analysis** - FER analyzes facial expressions (1-second intervals for performance)
+5. **🎨 Visualization** - Draws bounding boxes, track history polylines, and emotion labels
+6. **📊 Statistics** - Real-time FPS calculation and person count display
 
 ### Model Architecture:
-- **Person Detection:** YOLOv8n (optimized for speed)
-- **Face Detection:** YOLOv8n-face-lindevs (specialized for faces)
-- **Emotion Recognition:** FER (7 emotions: angry, disgust, fear, happy, sad, surprise, neutral)
-- **Tracking:** ByteTrack algorithm for ID persistence
+- **Person Detection:** YOLOv8n (optimized for speed) - Red bounding boxes
+- **Face Detection:** YOLOv8n-face-lindevs (specialized) - Green bounding boxes
+- **Emotion Recognition:** FER library (7 emotions: angry, disgust, fear, happy, sad, surprise, neutral)
+- **Tracking:** ByteTrack algorithm with unique ID persistence
+- **Track History:** Gray polylines showing movement paths (limited to 30 points)
 
-### Performance Optimizations:
-- **ONNX Models:** Faster inference than PyTorch models
-- **Emotion Interval:** Process emotions every 1 second instead of every frame
-- **Optimized Image Size:** 416x416 for ONNX models
-- **Efficient Memory Usage:** Limited track history to 30 points
-- **GPU Acceleration:** Automatic CUDA detection when available
+### Technical Implementation:
+- **Engine Class:** `PersonTrackerEngine` in `engine.py` handles all AI processing
+- **GUI Interface:** OpenCV-based viewer with modern overlay design
+- **Web Interface:** Flask server with WebRTC frontend for mobile access
+- **Automatic Fallback:** ONNX → PyTorch model loading with error handling
 
 ## 🎮 Controls & Interface
 
-### Desktop Application:
-- **Modern GUI Interface** - Full-featured desktop application with intuitive controls
-- **Mouse and Keyboard** - Interactive controls for all features
-- **Real-time Configuration** - Adjust settings on-the-fly
+### Desktop Application (OpenCV GUI):
+- **[F]** - Toggle fullscreen mode (with fallback to window resize)
+- **[SPACE]** - Pause/Resume video processing (preserves last frame)
+- **[Q] or [ESC]** - Quit application gracefully
 
-### Display Information:
-- **Source Type** - Shows "Webcam" or "YouTube"
-- **FPS Counter** - Real-time frames per second
-- **Person Count** - Number of detected persons
-- **Person IDs** - Unique tracking numbers
-- **Bounding Boxes** - Red for persons, green for faces
-- **Emotion Labels** - Detected emotions with confidence percentage
-- **Track History** - Gray polylines showing movement paths
+### Visual Interface Elements:
+- **Modern Header Overlay** - Semi-transparent dark background with key information
+- **Title Display** - "PERSON TRACKER - AI VISION" with orange glow effect
+- **Source Indicator** - Shows "Webcam" or "YouTube" source type
+- **Live Statistics** - FPS counter (green) and person count display
+- **Pause Indicator** - "|| PAUSED" message when video is paused
+- **Control Help** - Bottom overlay showing available keyboard shortcuts
 
-### Web Interface:
-- **🚀 Start Tracking** - Begin camera capture and AI processing
-- **🛑 Stop** - End tracking session and release camera resources
-- **📊 Live Statistics** - Real-time FPS, person count, and status display
-- **📱 Touch-Friendly** - Large buttons and intuitive mobile controls
+### Detection Visualization:
+- **Person Boxes** - Red rectangles around detected persons with ID numbers
+- **Face Boxes** - Green rectangles around detected faces with "Face" label  
+- **Emotion Labels** - Displayed near faces with confidence percentage
+- **Track History** - Gray polylines showing movement paths (max 30 points)
+- **Glass Morphism UI** - Modern semi-transparent overlays with proper alpha blending
+
+### Web Interface (Mobile):
+- **🚀 Start Tracking** - Begin WebRTC camera capture and AI processing
+- **🛑 Stop** - End tracking session and release camera resources  
+- **📊 Live Dashboard** - Real-time FPS, person count, and connection status
+- **📱 Responsive Design** - Adapts to any screen size and orientation
+- **� Touch-Optimized** - Large buttons designed for mobile interaction
 
 ## 📚 Documentation
 
@@ -205,22 +248,29 @@ flask>=2.0.0          # Web framework (WebApp only)
 
 ## 🚀 Performance Optimization
 
-### Use ONNX Models (Recommended):
-1. Run the ONNX conversion notebook: `ONNX_Conversion.ipynb`
-2. Place converted models in `models/` directory
-3. Application automatically detects and uses ONNX models
+### ONNX Model Usage (Automatic):
+- Models are automatically loaded from `models/` directory if available
+- Fallback to PyTorch models in `models/archive/` if ONNX files missing
+- No manual configuration required - the engine handles model selection
+
+### YouTube Stream Quality (Desktop Only):
+The application attempts multiple quality levels automatically:
+- 1080p → 720p60 → 720p → 480p → 360p → 240p → 144p
+- Uses yt-dlp with 30-second timeout per format attempt
+- Selects best available MP4 format for OpenCV compatibility
 
 ### Performance Tips:
-- **Lower confidence** (`--conf 0.3`) for more detections
-- **Higher confidence** (`--conf 0.6`) for fewer false positives
-- **Close other applications** to free up resources
+- **Use ONNX models** for ~2x faster inference than PyTorch
+- **Adjust confidence threshold** based on accuracy vs. speed needs
+- **Close other applications** to free up system resources
 - **Use SSD storage** for faster model loading
-- **Enable GPU acceleration** with CUDA-compatible GPU
+- **Enable GPU acceleration** if CUDA-compatible GPU available
 
 ### Troubleshooting Performance:
-- **Low FPS** → Use ONNX models, reduce video resolution
-- **High CPU usage** → Enable GPU acceleration
-- **Memory issues** → Close other applications, use smaller model
+- **Low FPS** → Check if ONNX models are being used, close other apps
+- **High CPU usage** → Consider lowering confidence threshold
+- **Memory issues** → Restart application, check available RAM
+- **Camera issues** → Try different webcam_id values (0, 1, 2, etc.)
 
 ## 📊 Performance Benchmarks
 
@@ -243,143 +293,228 @@ flask>=2.0.0          # Web framework (WebApp only)
 
 #### 1. Camera Not Detected:
 ```bash
-# Use the GUI application to select different cameras
-# Camera selection available in the interface dropdown
+# Try different camera IDs
+python gui.py --webcam_id 1  # or 2, 3, etc.
+
+# Check available cameras on Windows
+# Device Manager → Cameras
 ```
 
 #### 2. YouTube Stream Fails:
 ```bash
-# Update yt-dlp
+# Update yt-dlp to latest version
 pip install -U yt-dlp
 
-# Use the GUI to enter different video URL
-# YouTube URL input available in the interface
+# Try with a different YouTube URL
+python gui.py --source youtube --youtube_url "NEW_URL"
 ```
 
 #### 3. Models Not Found:
 ```
-❌ Error: No model found!
-✅ Solution: Ensure models are in models/ directory
-- Check models/yolov8n.onnx exists
-- Check models/archive/yolov8n.pt exists
+❌ Error: No face detection model found!
+✅ Solution: Ensure required files exist:
+- models/yolov8n.onnx (or models/archive/yolov8n.pt)
+- models/yolov8n-face-lindevs.onnx (or models/archive/yolov8n-face-lindevs.pt)
 ```
 
 #### 4. Low Performance:
 ```bash
-# Use optimized ONNX models (see ONNX_Conversion.ipynb)
+# Check if ONNX models are being used (console output shows model type)
+# Run ONNX conversion notebook if needed
 # Close other applications to free resources
-# Enable GPU if available
+# Lower confidence threshold: --conf 0.3
 ```
 
-#### 5. Import Errors:
+#### 5. Import/Dependency Errors:
 ```bash
-# Reinstall dependencies
+# Reinstall all dependencies
 pip install -r requirements.txt --force-reinstall
+
+# Check Python version (3.8+ required)
+python --version
+```
+
+#### 6. Web App Issues:
+```bash
+# Check if port 8080 is available
+netstat -an | findstr 8080  # Windows
+lsof -i :8080              # Mac/Linux
+
+# Try different port
+python server.py  # Modify port in server.py if needed
 ```
 
 ### Debug Information:
-- Application shows model loading status
-- Console displays error messages
-- FPS counter indicates performance issues
+- Console shows model loading status and file paths
+- FPS counter indicates performance issues (should be >10 for smooth operation)
+- Error messages provide specific failure details
 
 ## 🎯 Advanced Usage
 
-### Custom Model Training:
-1. Use YOLOv8 training pipeline
-2. Convert to ONNX for optimization
-3. Place in `models/` directory
-4. Update model path in arguments
+### Using the PersonTrackerEngine Class Directly:
+```python
+from engine import PersonTrackerEngine
+from ultralytics import YOLO
+from fer import FER
+
+# Initialize models
+person_model = YOLO('models/yolov8n.onnx')
+face_model = YOLO('models/yolov8n-face-lindevs.onnx')
+emotion_detector = FER()
+
+# Create engine instance
+engine = PersonTrackerEngine(
+    person_model=person_model,
+    face_model=face_model, 
+    emotion_detector=emotion_detector,
+    conf=0.4,
+    emotion_interval=1.0
+)
+
+# Process frame
+processed_frame, emotions, last_emotion_time, fps, person_count = engine.process_frame(frame)
+```
+
+### Custom Model Integration:
+1. Train custom YOLO models using Ultralytics framework
+2. Convert to ONNX format using the provided notebook
+3. Place in `models/` directory with appropriate naming
+4. Application will automatically detect and use new models
 
 ### YouTube Stream Quality Selection:
-The application automatically selects the best available quality:
-- 1080p → 720p60 → 720p → 480p → 360p → 240p → 144p
+The desktop application uses a fallback system for YouTube streams:
+- Attempts highest quality first (1080p)
+- Falls back through: 720p60 → 720p → 480p → 360p → 240p → 144p
+- Automatically selects best available format for real-time processing
 
-### Multiple Camera Setup:
-```bash
-# Use the GUI application to select different cameras
-# Camera selection available in the interface
-# Or use the engine.py module programmatically
-```
+### Integration with Other Applications:
+The `PersonTrackerEngine` class can be imported and used in other Python projects:
+- Real-time video analysis pipelines
+- Security camera systems  
+- Interactive art installations
+- Research applications
 
 ## 🔮 Planned Enhancements
 
 ### Short Term:
-- [x] **GUI Interface** - PyQt or Tkinter controls (Available in gui.py)
-- [ ] **Configuration File** - Save/load settings
-- [ ] **Recording Feature** - Save processed video
-- [ ] **Screenshot Capture** - Save current frame
+- [x] **Desktop OpenCV GUI** - Modern overlay interface with keyboard controls (✅ Complete)
+- [x] **Mobile Web Interface** - WebRTC-based mobile app with Flask backend (✅ Complete)
+- [ ] **Configuration File** - Save/load user preferences and settings
+- [ ] **Recording Feature** - Save processed video output to file
+- [ ] **Screenshot Capture** - Save current frame with detections
 
 ### Medium Term:
-- [ ] **Re-identification** - Prevent ID number inflation
-- [ ] **Multi-camera Support** - Process multiple streams
-- [ ] **Data Logging** - CSV export of tracking data
-- [ ] **Real-time Dashboard** - Separate statistics window
+- [ ] **Enhanced GUI Controls** - Settings panel within OpenCV interface
+- [ ] **Multiple Camera Support** - Process multiple webcam streams simultaneously
+- [ ] **Data Export** - CSV logging of tracking data and emotion history
+- [ ] **Real-time Dashboard** - Separate statistics and analytics window
+- [ ] **Model Hot-swapping** - Change models without restarting application
 
 ### Long Term:
-- [ ] **Custom Emotion Models** - Train domain-specific models
-- [ ] **3D Pose Estimation** - Extended person analysis
-- [ ] **Age/Gender Detection** - Additional demographic info
-- [ ] **Behavior Analysis** - Activity recognition
+- [ ] **Custom Emotion Models** - Train domain-specific emotion recognition
+- [ ] **3D Pose Estimation** - Extended person analysis capabilities
+- [ ] **Age/Gender Detection** - Additional demographic analysis
+- [ ] **Behavior Analysis** - Activity and gesture recognition
+- [ ] **Multi-target Re-identification** - Prevent ID switching and improve tracking
 
 ## 📦 Installation
 
-### Quick Install:
+### Quick Installation:
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/PersonTracker.git
+git clone <repository-url>
 cd PersonTracker
+
+# Install all dependencies
+pip install -r requirements.txt
+
+# Run desktop application
+python gui.py
+
+# Or run mobile web application
+cd WebApp && python server.py
+```
+
+### Windows PowerShell Setup:
+```powershell
+# Create virtual environment (recommended)
+python -m venv venv
+.\venv\Scripts\Activate.ps1
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run desktop GUI application
-python gui.py
-
-# Or run web application
-cd WebApp && python server.py
+# Verify installation
+python gui.py --help
 ```
 
 ### Development Setup:
 ```bash
-# Create virtual environment
+# Create isolated environment
 python -m venv venv
+
+# Activate environment
 source venv/bin/activate  # Linux/Mac
-# or
-venv\Scripts\activate  # Windows
+venv\Scripts\activate     # Windows
 
 # Install in development mode
 pip install -r requirements.txt
 
-# Optional: Install additional development tools
-pip install jupyter notebook  # For ONNX conversion notebook
+# Optional: Install Jupyter for ONNX conversion
+pip install jupyter notebook
 ```
+
+### Model Setup:
+1. **ONNX Models (Recommended)**: Run `ONNX_Conversion.ipynb` to generate optimized models
+2. **PyTorch Fallback**: Application will download YOLOv8n.pt automatically if needed
+3. **Face Model**: Ensure `yolov8n-face-lindevs.pt` is in `models/archive/` directory
 
 ## 🎪 Perfect for Exhibitions & Demos
 
-### Web App Features:
-- **📱 Mobile-First Design** - Works perfectly on phones and tablets
-- **🎨 Modern UI** - Beautiful glass-morphism design with animations
-- **📊 Live Statistics** - Real-time FPS and detection count
-- **🌐 Easy Access** - No app installation required
-- **📡 Network Sharing** - Access from multiple devices
+### Desktop Application Features:
+- **�️ Professional Display** - Full-screen mode with modern overlay design
+- **⚡ Real-time Processing** - Live AI detection with minimal latency
+- **� Interactive Controls** - Easy keyboard shortcuts for live demonstrations
+- **📊 Live Statistics** - Professional FPS and detection count display
+- **� Reliable Performance** - ONNX optimization for consistent frame rates
+
+### Mobile Web App Features:
+- **📱 Zero Installation** - Works instantly on any mobile device
+- **🎨 Modern UI Design** - Professional gradient interface with smooth animations  
+- **� Live Dashboard** - Real-time statistics and connection status
+- **🌐 Network Access** - Easy sharing via IP address for multiple devices
+- **👆 Touch-Optimized** - Large buttons designed for public interaction
 
 ### Production Deployment:
 Ready for public deployment with Cloudflare Tunnel:
 ```bash
-# Quick public deployment (free)
+# Quick public deployment (free tier)
 cloudflared tunnel --url http://localhost:8080
 ```
 
-For permanent deployment, see [DEPLOYMENT_GUIDE.md](WebApp/DEPLOYMENT_GUIDE.md)
+For permanent deployment with custom domains, see [DEPLOYMENT_GUIDE.md](WebApp/DEPLOYMENT_GUIDE.md)
+
+### Exhibition Setup Tips:
+1. **Use ONNX models** for best performance
+2. **Set confidence to 0.4** for balanced detection
+3. **Test camera lighting** before exhibition
+4. **Provide clear instructions** for mobile users
+5. **Monitor server performance** during high traffic
 
 ---
 
-🎯 **Ready to try it?** Start with the desktop GUI: `python gui.py`  
-📱 **Want the web version?** Check out the [WebApp README](WebApp/README.md)!
+🎯 **Ready to get started?** Try the desktop interface: `python gui.py`  
+📱 **Want the mobile experience?** Check out the [WebApp README](WebApp/README.md)!
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our contributing guidelines and feel free to submit issues, feature requests, or pull requests.
+We welcome contributions! Please feel free to submit issues, feature requests, or pull requests. 
+
+### Development Guidelines:
+- Follow existing code style and structure
+- Test on both desktop and mobile interfaces
+- Update documentation for new features
+- Ensure ONNX and PyTorch model compatibility
 
 ## 📄 License
 
@@ -387,12 +522,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🙏 Acknowledgments
 
-- **Ultralytics** for the amazing YOLO implementation
-- **FER** library for emotion recognition capabilities
-- **OpenCV** for computer vision operations
-- **ByteTrack** for robust multi-object tracking
-- The open-source community for inspiration and support
+- **[Ultralytics](https://ultralytics.com)** for the excellent YOLOv8 implementation and ByteTrack integration
+- **[FER Library](https://github.com/justinshenk/fer)** for robust emotion recognition capabilities  
+- **[OpenCV](https://opencv.org)** for comprehensive computer vision operations and GUI framework
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** for reliable YouTube stream extraction
+- **Flask** for lightweight web framework enabling mobile interface
+- The open-source AI community for inspiration and collaborative development
 
 ---
 
-**Made with ❤️ for the AI community**
+**Made with ❤️ for the AI and Computer Vision community**
